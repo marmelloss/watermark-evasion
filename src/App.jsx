@@ -1,65 +1,47 @@
-import { useState } from 'react';
-import './App.css';
+import React, { useState } from 'react';
 
 function App() {
-  const [inputText, setInputText] = useState('');
-  const [outputText, setOutputText] = useState('');
+  const [text, setText] = useState('');
+  const [result, setResult] = useState('');
 
   const handleBypass = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/bypass', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: inputText })
-      });
-
-      const result = await response.json();
-      setOutputText(result.result);
-    } catch (error) {
-      alert('Error contacting backend. Is your Python server running?');
-      console.error(error);
-    }
+    const response = await fetch('http://127.0.0.1:8000/bypass', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await response.json();
+    setResult(data.result);
   };
 
-  const saveToTxt = () => {
-    const blob = new Blob([outputText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'evasive_text.txt';
-    link.click();
-    URL.revokeObjectURL(url);
+  const handleDownload = async () => {
+    const response = await fetch('http://127.0.0.1:8000/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'watermarked_output.txt';
+    a.click();
   };
 
   return (
-    <div className="App">
-      <h1>AI Watermark Evasion Tool</h1>
-      <p>Paste AI-generated text below:</p>
-
+    <div>
+      <h1>Watermark Evasion Tool</h1>
       <textarea
-        value={inputText}
-        onChange={(e) => setInputText(e.target.value)}
-        placeholder="Paste ChatGPT or AI-generated text here"
-        rows={10}
-        cols={80}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Enter text here..."
+        rows="10"
+        cols="50"
       />
-
       <br />
-      <button onClick={handleBypass}>Bypass Detection</button>
-
-      <h2>Output:</h2>
-      <textarea
-        value={outputText}
-        readOnly
-        rows={10}
-        cols={80}
-        placeholder="Modified text will appear here"
-      />
-
-      <br />
-      <button onClick={saveToTxt}>Save as .txt</button>
+      <button onClick={handleBypass}>Bypass Watermark</button>
+      <button onClick={handleDownload}>Download Watermarked File</button>
+      <pre>{result}</pre>
     </div>
   );
 }
