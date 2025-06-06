@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Response, HTTPException
 from pydantic import BaseModel
 import hashlib
 import base64
@@ -7,6 +7,10 @@ import string
 from datetime import datetime
 from fastapi.staticfiles import StaticFiles
 import os
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.DEBUG)
 
 app = FastAPI()
 
@@ -99,51 +103,65 @@ async def bypass_watermark(data: TextInput):
     Endpoint to process text by adding invisible watermarks and decoy patterns,
     then encoding the result in Base64.
     """
-    text = data.text
+    try:
+        text = data.text
+        logging.debug("Received request with text: %s", text)
 
-    # Step 1: Add invisible watermark
-    watermarked_text = insert_invisible_watermark(text)
+        # Step 1: Add invisible watermark
+        watermarked_text = insert_invisible_watermark(text)
+        logging.debug("Watermarked text: %s", watermarked_text)
 
-    # Step 2: Add fake watermark pattern
-    final_text = insert_decoy_watermark(watermarked_text)
+        # Step 2: Add fake watermark pattern
+        final_text = insert_decoy_watermark(watermarked_text)
+        logging.debug("Final text with decoy: %s", final_text)
 
-    # Step 3: Encode in Base64 for obfuscation
-    obfuscated_text = obfuscate_with_base64(final_text)
+        # Step 3: Encode in Base64 for obfuscation
+        obfuscated_text = obfuscate_with_base64(final_text)
+        logging.debug("Obfuscated text: %s", obfuscated_text)
 
-    # For debugging purposes, return also the invisible watermark
-    metadata = f"prompt_id:{generate_random_id(10)}|model:gpt-4|timestamp:{generate_timestamp()}"
-    bits = hash_to_binary(metadata)
-    unicode_hash = binary_to_unicode(bits)
+        # For debugging purposes, return also the invisible watermark
+        metadata = f"prompt_id:{generate_random_id(10)}|model:gpt-4|timestamp:{generate_timestamp()}"
+        bits = hash_to_binary(metadata)
+        unicode_hash = binary_to_unicode(bits)
+        logging.debug("Unicode hash: %s", unicode_hash)
 
-    return {
-        "processed_text": obfuscated_text,
-        "unicode_hash": base64.b64encode(unicode_hash.encode()).decode()
-    }
+        return {
+            "processed_text": obfuscated_text,
+            "unicode_hash": base64.b64encode(unicode_hash.encode()).decode()
+        }
+    except Exception as e:
+        logging.error("Error processing request: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 
 @app.post("/download")
 async def download_watermarked_file(data: TextInput):
     """
     Endpoint to process text and return it as a downloadable `.txt` file.
     """
-    text = data.text
+    try:
+        text = data.text
+        logging.debug("Received download request with text: %s", text)
 
-    # Process the text
-    watermarked_text = insert_invisible_watermark(text)
-    final_text = insert_decoy_watermark(watermarked_text)
-    obfuscated_text = obfuscate_with_base64(final_text)
+        # Process the text
+        watermarked_text = insert_invisible_watermark(text)
+        final_text = insert_decoy_watermark(watermarked_text)
+        obfuscated_text = obfuscate_with_base64(final_text)
 
-    headers = {
-        "Content-Disposition": "attachment; filename=watermarked_output.txt"
-    }
+        # Prepare the file content
+        file_content = obfuscated_text.encode()
+        headers = {
+            "Content-Disposition": "attachment; filename=watermarked_output.txt"
+        }
 
-    return Response(content=obfuscated_text, media_type="text/plain", headers=headers)
+        return Response(content=file_content, media_type="text/plain", headers=headers)
+    except Exception as e:
+        logging.error("Error processing download request: %s", str(e))
+        raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 
 # Serve static files
 app.mount("/", StaticFiles(directory="dist", html=True), name="static")
 
 # Get the port from the environment variable or default to 8000
 port = int(os.getenv("PORT", 8000))
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=port)
