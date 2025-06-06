@@ -176,6 +176,10 @@
         <label for="inputText">Input Text:</label>
         <textarea id="inputText" placeholder="Paste your AI-generated text here..."></textarea>
         <div class="button-group">
+            <button id="processBtn" onclick="processText()">
+                <span id="processText">Process Text</span>
+                <span id="processLoading" class="loading" style="display: none;"></span>
+            </button>
             <button id="bypassBtn" onclick="bypassWatermark()">
                 <span id="bypassText">Bypass Watermark</span>
                 <span id="bypassLoading" class="loading" style="display: none;"></span>
@@ -202,14 +206,10 @@
                 <div class="tab" onclick="switchTab('about')">About</div>
             </div>
             <div id="processed" class="tab-content active">
-                <h2>Readable Text:</h2>
-                <pre id="readableText">The original text will appear here...</pre>
-
-                <h2>Processed Text (Base64):</h2>
-                <div style="position: relative;">
+                <h2>Processed Text:</h2>
+                <div class="button-container">
                     <pre id="outputText">Your processed text will appear here...</pre>
                     <button class="copy-btn" onclick="copyToClipboard('outputText')">Copy</button>
-                    <button class="decode-btn" onclick="decodeBase64()">Decode</button>
                 </div>
                 <p><small>This text contains both invisible watermarks and decoy patterns to confuse detection systems.</small></p>
             </div>
@@ -222,12 +222,12 @@
                 <p><small>This is the plain text version of the processed output, including invisible markers and decoy patterns.</small></p>
             </div>
             <div id="hash" class="tab-content">
-                <h2>Embedded Unicode Hash:</h2>
+                <h2>Embedded Metadata:</h2>
                 <div class="button-container">
-                    <pre id="unicodeHash">The embedded metadata hash will appear here...</pre>
+                    <pre id="unicodeHash">The embedded metadata will appear here...</pre>
                     <button class="copy-btn" onclick="copyToClipboard('unicodeHash')">Copy</button>
                 </div>
-                <p><small>This is the hidden metadata encoded in zero-width characters within your text.</small></p>
+                <p><small>This is the hidden metadata encoded in the text.</small></p>
             </div>
             <div id="about" class="tab-content">
                 <h2>About This Tool</h2>
@@ -235,7 +235,7 @@
                 <ul>
                     <li>Add invisible watermarks using zero-width Unicode characters</li>
                     <li>Insert decoy watermark patterns to confuse detection systems</li>
-                    <li>Obfuscate the output with Base64 encoding</li>
+                    <li>Obfuscate the output with multiple encoding layers</li>
                 </ul>
                 <p><strong>Note:</strong> This is for research purposes only. Use responsibly.</p>
             </div>
@@ -282,58 +282,64 @@
             });
         }
 
-        // Validate Base64 string
-        function isValidBase64(str) {
-            return /^[A-Za-z0-9+/=]*$/.test(str);
-        }
-
-        // Decode Base64 text
-        function decodeBase64() {
-            const base64Text = document.getElementById('outputText').textContent.trim();
-            if (base64Text === 'Your processed text will appear here...') {
-                showAlert('No processed text to decode', 'error');
-                return;
-            }
-            try {
-                // Step 1: Decode Base64
-                let decodedText = atob(base64Text);
-
-                // Step 2: Reverse the string
-                decodedText = decodedText.split('').reverse().join('');
-
-                // Step 3: Apply ROT13 decoding
-                decodedText = rot13(decodedText);
-
-                // Display the decoded text
-                document.getElementById('decodedText').textContent = decodedText;
-                switchTab('decoded');
-                showAlert('Base64 decoded successfully!', 'success');
-            } catch (error) {
-                showAlert('Error decoding Base64: ' + error.message, 'error');
-                console.error('Decoding Error:', error);
-            }
-        }
-
-        // Helper function to decode ROT13
-        function rot13(str) {
-            return str.replace(/[A-Za-z]/g, function(c) {
-                return String.fromCharCode(
-                    c.charCodeAt(0) + (c.toUpperCase() <= 'M' ? 13 : -13)
-                );
-            });
-        }
-
         // Clear all fields
         function clearAll() {
             document.getElementById('inputText').value = '';
             document.getElementById('outputText').textContent = 'Your processed text will appear here...';
             document.getElementById('decodedText').textContent = 'The decoded text will appear here...';
-            document.getElementById('unicodeHash').textContent = 'The embedded metadata hash will appear here...';
-            document.getElementById('readableText').textContent = 'The original text will appear here...';
+            document.getElementById('unicodeHash').textContent = 'The embedded metadata will appear here...';
             document.getElementById('inputCount').textContent = '0';
             document.getElementById('outputCount').textContent = '0';
             switchTab('processed');
             showAlert('All fields cleared', 'success');
+        }
+
+        // Process Text Function
+        async function processText() {
+            const inputText = document.getElementById("inputText").value.trim();
+            if (!inputText) {
+                showAlert('Please enter some text first', 'error');
+                return;
+            }
+
+            try {
+                // Show loading state
+                document.getElementById('processText').style.display = 'none';
+                document.getElementById('processLoading').style.display = 'inline-block';
+                document.getElementById('processBtn').disabled = true;
+
+                // Send request to the backend
+                const response = await fetch("/process", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: inputText, download: false }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server responded with status ${response.status}`);
+                }
+
+                // Parse the response
+                const result = await response.json();
+
+                // Display the processed text
+                document.getElementById("outputText").textContent = result.processed_text;
+                document.getElementById("unicodeHash").textContent = result.metadata;
+
+                // Update character counts
+                document.getElementById("inputCount").textContent = inputText.length;
+                document.getElementById("outputCount").textContent = result.processed_text.length;
+
+                showAlert('Text processed successfully!', 'success');
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+                console.error('Error:', error);
+            } finally {
+                // Hide loading state
+                document.getElementById('processText').style.display = 'inline-block';
+                document.getElementById('processLoading').style.display = 'none';
+                document.getElementById('processBtn').disabled = false;
+            }
         }
 
         // Bypass Watermark Function
@@ -364,11 +370,9 @@
                 // Parse the response
                 const result = await response.json();
 
-                // Display the readable text
-                document.getElementById("readableText").innerText = inputText;
-
-                // Display the processed text (Base64)
-                document.getElementById("outputText").innerText = result.processed_text;
+                // Display the processed text
+                document.getElementById("outputText").textContent = result.processed_text;
+                document.getElementById("unicodeHash").textContent = result.metadata;
 
                 // Update character counts
                 document.getElementById("inputCount").textContent = inputText.length;
@@ -393,19 +397,19 @@
                 showAlert('Please enter some text first', 'error');
                 return;
             }
+            
             try {
                 // Show loading state
                 document.getElementById('downloadText').style.display = 'none';
                 document.getElementById('downloadLoading').style.display = 'inline-block';
                 document.getElementById('downloadBtn').disabled = true;
 
-                const response = await fetch("/download", {
+                const response = await fetch("/process", {
                     method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({ text: inputText })
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: inputText, download: true })
                 });
+
                 if (!response.ok) {
                     throw new Error(`Server responded with status ${response.status}`);
                 }

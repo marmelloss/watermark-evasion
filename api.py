@@ -234,5 +234,11 @@ async def health_check():
     return {"status": "healthy"}
 
 
-# Serve static files for frontend
-app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")
+# Conditional static files mounting
+frontend_path = "frontend/dist"
+if os.path.exists(frontend_path) and os.path.isdir(frontend_path):
+    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+else:
+    @app.get("/")
+    async def read_root():
+        return {"message": "Backend is running but no frontend files were found"}
