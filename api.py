@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 import os
 import logging
 from typing import Optional
+from pathlib import Path
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
@@ -44,23 +45,19 @@ LANGUAGE_DECOYS = {
     "ar": ["تم_الإنشاء", "الإجابة", "الناتج"]
 }
 
-
 def hash_to_binary(data: str) -> str:
     """Hash input data using SHA-256 and return binary string."""
     h = hashlib.sha256(data.encode()).digest()
     return ''.join(f"{byte:08b}" for byte in h)
-
 
 def binary_to_unicode(bits: str) -> str:
     """Convert binary string to invisible Unicode characters."""
     mapping = {'0': ZWNJ, '1': ZWJ}
     return ''.join(mapping[b] for b in bits)
 
-
 def generate_decoy_payload(length: int = 32) -> str:
     """Generate fake payload with random invisible characters."""
     return ''.join(random.choices(DECOY_CHARS, k=length))
-
 
 def insert_invisible_watermark(text: str) -> str:
     """Insert invisible watermark based on metadata."""
@@ -74,7 +71,6 @@ def insert_invisible_watermark(text: str) -> str:
     # Insert at a random position
     pos = random.randint(len(text) // 4, (len(text) // 4) * 3)
     return text[:pos] + spaced_watermark + text[pos:]
-
 
 def insert_decoy_watermark(text: str) -> str:
     """Add fake watermark patterns to confuse decoders."""
@@ -91,7 +87,6 @@ def insert_decoy_watermark(text: str) -> str:
     pos = random.randint(len(text) // 3, (len(text) // 3) * 2)
     return text[:pos] + decoy_pattern + text[pos:]
 
-
 def inject_statistical_noise(text: str) -> str:
     """Inject random noise into the text to disrupt statistical analysis."""
     noise_chars = [ZWJ, ZWNJ, ZWSP, ZWNBSP]
@@ -104,21 +99,17 @@ def inject_statistical_noise(text: str) -> str:
 
     return ''.join(noisy_text)
 
-
 def generate_random_id(length: int = 10) -> str:
     """Generate fake prompt IDs."""
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
-
 
 def generate_timestamp() -> str:
     """Generate fake timestamps."""
     return datetime.now().isoformat()
 
-
 def obfuscate_with_base64(text: str) -> str:
     """Encode text into Base64 format."""
     return base64.b64encode(text.encode()).decode()
-
 
 def apply_rot13(text: str) -> str:
     """Apply ROT13 encoding to the text."""
@@ -126,7 +117,6 @@ def apply_rot13(text: str) -> str:
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
         'NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm'
     ))
-
 
 def multi_layer_obfuscation(text: str) -> str:
     """Apply multiple layers of obfuscation to the text."""
@@ -141,11 +131,9 @@ def multi_layer_obfuscation(text: str) -> str:
 
     return encoded
 
-
 class TextInput(BaseModel):
     text: str
     download: Optional[bool] = False
-
 
 @app.post("/process")
 async def process_text(data: TextInput, request: Request):
@@ -195,7 +183,6 @@ async def process_text(data: TextInput, request: Request):
         logging.error(f"Error processing request: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-
 @app.post("/bypass")
 async def bypass_watermark(data: TextInput):
     """Endpoint to bypass watermark detection by adding noise and obfuscation."""
@@ -227,18 +214,31 @@ async def bypass_watermark(data: TextInput):
         logging.error(f"Error in bypass endpoint: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
 
+# Serve frontend files
+current_dir = Path(__file__).parent
+frontend_path = current_dir / "frontend" / "dist"
 
-# Conditional static files mounting
-frontend_path = "frontend/dist"
-if os.path.exists(frontend_path) and os.path.isdir(frontend_path):
-    app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")
+if frontend_path.exists() and frontend_path.is_dir():
+    app.mount("/", StaticFiles(directory=str(frontend_path), name="frontend")
+    
+    @app.exception_handler(404)
+    async def custom_404_handler(request: Request, exc: Exception):
+        index_path = frontend_path / "index.html"
+        if index_path.exists():
+            return Response(content=index_path.read_text(), media_type="text/html")
+        return Response(
+            content="Frontend files not found. Please ensure the frontend is built and placed in the correct directory.",
+            media_type="text/plain"
+        )
 else:
     @app.get("/")
-    async def read_root():
-        return {"message": "Backend is running but no frontend files were found"}
+    async def serve_frontend():
+        return Response(
+            content="Frontend files not found. Please ensure the frontend is built and placed in the correct directory.",
+            media_type="text/plain"
+        )
