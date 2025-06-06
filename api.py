@@ -110,8 +110,15 @@ async def bypass_watermark(data: TextInput):
     # Step 3: Encode in Base64 for obfuscation
     obfuscated_text = obfuscate_with_base64(final_text)
 
-    return {"result": obfuscated_text}
+    # For debugging purposes, return also the invisible watermark
+    metadata = f"prompt_id:{generate_random_id(10)}|model:gpt-4|timestamp:{generate_timestamp()}"
+    bits = hash_to_binary(metadata)
+    unicode_hash = binary_to_unicode(bits)
 
+    return {
+        "processed_text": obfuscated_text,
+        "unicode_hash": base64.b64encode(unicode_hash.encode()).decode()
+    }
 
 @app.post("/download")
 async def download_watermarked_file(data: TextInput):
@@ -125,14 +132,11 @@ async def download_watermarked_file(data: TextInput):
     final_text = insert_decoy_watermark(watermarked_text)
     obfuscated_text = obfuscate_with_base64(final_text)
 
-    # Prepare the file content
-    file_content = obfuscated_text.encode()
     headers = {
         "Content-Disposition": "attachment; filename=watermarked_output.txt"
     }
 
-    return Response(content=file_content, media_type="text/plain", headers=headers)
-
+    return Response(content=obfuscated_text, media_type="text/plain", headers=headers)
 
 # Serve static files
 app.mount("/", StaticFiles(directory="dist", html=True), name="static")
