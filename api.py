@@ -33,14 +33,12 @@ LANGUAGE_DECOYS = {
     "ar": ["تم_الإنشاء", "الإجابة", "الناتج"]
 }
 
-
 def hash_to_binary(data: str) -> str:
     """
     Hash input data using SHA-256 and return binary string.
     """
     h = hashlib.sha256(data.encode()).digest()
     return ''.join(f"{byte:08b}" for byte in h)
-
 
 def binary_to_unicode(bits: str) -> str:
     """
@@ -49,13 +47,11 @@ def binary_to_unicode(bits: str) -> str:
     mapping = {'0': ZWNJ, '1': ZWJ}
     return ''.join(mapping[b] for b in bits)
 
-
 def generate_decoy_payload(length: int = 32) -> str:
     """
     Generate fake payload with random invisible characters.
     """
     return ''.join(random.choices(DECOY_CHARS, k=length))
-
 
 def insert_invisible_watermark(text: str) -> str:
     """
@@ -71,7 +67,6 @@ def insert_invisible_watermark(text: str) -> str:
     # Insert at a random position
     pos = random.randint(len(text) // 4, (len(text) // 4) * 3)
     return text[:pos] + spaced_watermark + text[pos:]
-
 
 def insert_decoy_watermark(text: str) -> str:
     """
@@ -90,7 +85,6 @@ def insert_decoy_watermark(text: str) -> str:
     pos = random.randint(len(text) // 3, (len(text) // 3) * 2)
     return text[:pos] + decoy_pattern + text[pos:]
 
-
 def inject_statistical_noise(text: str) -> str:
     """
     Inject random noise into the text to disrupt statistical analysis.
@@ -105,13 +99,11 @@ def inject_statistical_noise(text: str) -> str:
 
     return ''.join(noisy_text)
 
-
 def generate_random_id(length: int = 10) -> str:
     """
     Generate fake prompt IDs.
     """
     return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
-
 
 def generate_timestamp() -> str:
     """
@@ -119,13 +111,11 @@ def generate_timestamp() -> str:
     """
     return datetime.now().isoformat()
 
-
 def obfuscate_with_base64(text: str) -> str:
     """
     Encode text into Base64 format.
     """
     return base64.b64encode(text.encode()).decode()
-
 
 def apply_rot13(text: str) -> str:
     """
@@ -135,7 +125,6 @@ def apply_rot13(text: str) -> str:
         'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',
         'NOPQRSTUVWXYZABCDEFGHIJKLMnopqrstuvwxyzabcdefghijklm'
     ))
-
 
 def multi_layer_obfuscation(text: str) -> str:
     """
@@ -152,10 +141,8 @@ def multi_layer_obfuscation(text: str) -> str:
 
     return encoded
 
-
 class TextInput(BaseModel):
     text: str
-
 
 @app.post("/bypass")
 async def bypass_watermark(data: TextInput):
@@ -197,7 +184,6 @@ async def bypass_watermark(data: TextInput):
         logging.error("Error processing request: %s", str(e))
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
-
 @app.post("/download")
 async def download_watermarked_file(data: TextInput):
     """
@@ -218,12 +204,10 @@ async def download_watermarked_file(data: TextInput):
         headers = {
             "Content-Disposition": "attachment; filename=watermarked_output.txt"
         }
-
         return Response(content=file_content, media_type="text/plain", headers=headers)
     except Exception as e:
         logging.error("Error processing download request: %s", str(e))
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
-
 
 # Serve static files
 app.mount("/", StaticFiles(directory="dist", html=True), name="static")
