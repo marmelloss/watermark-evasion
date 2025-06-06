@@ -129,6 +129,15 @@
             background-color: #3da8d8;
         }
         
+        .decode-btn {
+            background-color: var(--accent-color);
+            margin-left: 10px;
+        }
+        
+        .decode-btn:hover {
+            background-color: #3da8d8;
+        }
+        
         .tabs {
             display: flex;
             border-bottom: 1px solid #ddd;
@@ -172,6 +181,27 @@
             color: #721c24;
             border: 1px solid #f5c6cb;
         }
+        
+        .button-container {
+            position: relative;
+            margin-top: 10px;
+        }
+        
+        .button-container button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        
+        .copy-btn {
+            right: 100px;
+        }
+        
+        .decode-btn {
+            right: 10px;
+        }
     </style>
 </head>
 <body>
@@ -208,22 +238,33 @@
         <div class="output-container">
             <div class="tabs">
                 <div class="tab active" onclick="switchTab('processed')">Processed Text</div>
+                <div class="tab" onclick="switchTab('decoded')">Decoded Text</div>
                 <div class="tab" onclick="switchTab('hash')">Embedded Metadata</div>
                 <div class="tab" onclick="switchTab('about')">About</div>
             </div>
             
             <div id="processed" class="tab-content active">
                 <h2>Processed Text (Base64):</h2>
-                <div style="position: relative;">
+                <div class="button-container">
                     <pre id="outputText">Your processed text will appear here...</pre>
                     <button class="copy-btn" onclick="copyToClipboard('outputText')">Copy</button>
+                    <button class="decode-btn" onclick="decodeBase64()">Decode</button>
                 </div>
                 <p><small>This text contains both invisible watermarks and decoy patterns to confuse detection systems.</small></p>
             </div>
             
+            <div id="decoded" class="tab-content">
+                <h2>Decoded Text:</h2>
+                <div class="button-container">
+                    <pre id="decodedText">The decoded text will appear here...</pre>
+                    <button class="copy-btn" onclick="copyToClipboard('decodedText')">Copy</button>
+                </div>
+                <p><small>This is the plain text version of the processed output, including invisible markers and decoy patterns.</small></p>
+            </div>
+            
             <div id="hash" class="tab-content">
                 <h2>Embedded Unicode Hash:</h2>
-                <div style="position: relative;">
+                <div class="button-container">
                     <pre id="unicodeHash">The embedded metadata hash will appear here...</pre>
                     <button class="copy-btn" onclick="copyToClipboard('unicodeHash')">Copy</button>
                 </div>
@@ -286,13 +327,34 @@
             });
         }
         
+        // Decode Base64 text
+        function decodeBase64() {
+            const base64Text = document.getElementById('outputText').textContent;
+            
+            if (base64Text === 'Your processed text will appear here...') {
+                showAlert('No processed text to decode', 'error');
+                return;
+            }
+            
+            try {
+                const decodedText = atob(base64Text);
+                document.getElementById('decodedText').textContent = decodedText;
+                switchTab('decoded');
+                showAlert('Base64 decoded successfully!', 'success');
+            } catch (error) {
+                showAlert('Error decoding Base64: ' + error.message, 'error');
+            }
+        }
+        
         // Clear all fields
         function clearAll() {
             document.getElementById('inputText').value = '';
             document.getElementById('outputText').textContent = 'Your processed text will appear here...';
+            document.getElementById('decodedText').textContent = 'The decoded text will appear here...';
             document.getElementById('unicodeHash').textContent = 'The embedded metadata hash will appear here...';
             document.getElementById('inputCount').textContent = '0';
             document.getElementById('outputCount').textContent = '0';
+            switchTab('processed');
             showAlert('All fields cleared', 'success');
         }
         
